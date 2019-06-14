@@ -298,7 +298,7 @@ RCT_NOT_IMPLEMENTED(- (instancetype)init)
 - (void)setContentOffset:(CGPoint)contentOffset
 {
   UIView *contentView = [self contentView];
-  if (contentView && _centerContent) {
+  if (contentView && _centerContent && !CGSizeEqualToSize(contentView.frame.size, CGSizeZero)) {
     CGSize subviewSize = contentView.frame.size;
     CGSize scrollViewSize = self.bounds.size;
     if (subviewSize.width <= scrollViewSize.width) {
@@ -476,7 +476,7 @@ static inline void RCTApplyTransformationAccordingLayoutDirection(UIView *view, 
   } else
 #endif
   {
-    RCTAssert(_contentView == nil, @"RCTScrollView may only contain a single subview");
+    RCTAssert(_contentView == nil, @"RCTScrollView may only contain a single subview, the already set subview looks like: %@", [_contentView react_recursiveDescription]);
     _contentView = view;
     RCTApplyTransformationAccordingLayoutDirection(_contentView, self.reactLayoutDirection);
     [_scrollView addSubview:view];
@@ -697,16 +697,19 @@ RCT_SCROLL_EVENT_HANDLER(scrollViewDidScrollToTop, onScrollToTop)
 
 - (void)scrollViewDidScroll:(UIScrollView *)scrollView
 {
-  [self updateClippedSubviews];
   NSTimeInterval now = CACurrentMediaTime();
+  [self updateClippedSubviews];
   /**
    * TODO: this logic looks wrong, and it may be because it is. Currently, if _scrollEventThrottle
    * is set to zero (the default), the "didScroll" event is only sent once per scroll, instead of repeatedly
    * while scrolling as expected. However, if you "fix" that bug, ScrollView will generate repeated
    * warnings, and behave strangely (ListView works fine however), so don't fix it unless you fix that too!
+   *
+   * We limit the delta to 17ms so that small throttles intended to enable 60fps updates will not
+   * inadvertently filter out any scroll events.
    */
   if (_allowNextScrollNoMatterWhat ||
-      (_scrollEventThrottle > 0 && _scrollEventThrottle < (now - _lastScrollDispatchTime))) {
+      (_scrollEventThrottle > 0 && _scrollEventThrottle < MAX(0.017, now - _lastScrollDispatchTime))) {
 
     if (_DEPRECATED_sendUpdatedChildFrames) {
       // Calculate changed frames

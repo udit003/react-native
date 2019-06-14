@@ -283,16 +283,16 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithFrame:(CGRect)frame)
 
 - (void)setSecureTextEntry:(BOOL)secureTextEntry {
   UIView<RCTBackedTextInputViewProtocol> *textInputView = self.backedTextInputView;
-    
+
   if (textInputView.secureTextEntry != secureTextEntry) {
     textInputView.secureTextEntry = secureTextEntry;
-      
+
     // Fix #5859, see https://stackoverflow.com/questions/14220187/uitextfield-has-trailing-whitespace-after-securetextentry-toggle/22537788#22537788
     NSAttributedString *originalText = [textInputView.attributedText copy];
     self.backedTextInputView.attributedText = [NSAttributedString new];
     self.backedTextInputView.attributedText = originalText;
   }
-    
+
 }
 
 #pragma mark - RCTBackedTextInputDelegate
@@ -381,7 +381,12 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithFrame:(CGRect)frame)
         // Truncate the input string so the result is exactly maxLength
         NSString *limitedString = [text substringToIndex:allowedLength];
         NSMutableAttributedString *newAttributedText = [backedTextInputView.attributedText mutableCopy];
-        [newAttributedText replaceCharactersInRange:range withString:limitedString];
+        // Apply text attributes if original input view doesn't have text.
+        if (backedTextInputView.attributedText.length == 0) {
+          newAttributedText = [[NSMutableAttributedString alloc] initWithString:[self.textAttributes applyTextAttributesToText:limitedString] attributes:self.textAttributes.effectiveTextAttributes];
+        } else {
+          [newAttributedText replaceCharactersInRange:range withString:limitedString];
+        }
         backedTextInputView.attributedText = newAttributedText;
         _predictedText = newAttributedText.string;
 
@@ -399,7 +404,7 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithFrame:(CGRect)frame)
   }
 
   NSString *previousText = backedTextInputView.attributedText.string ?: @"";
-  
+
   if (range.location + range.length > backedTextInputView.attributedText.string.length) {
     _predictedText = backedTextInputView.attributedText.string;
   } else {

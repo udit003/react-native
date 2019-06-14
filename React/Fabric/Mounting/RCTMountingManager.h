@@ -11,8 +11,8 @@
 #import <React/RCTPrimitives.h>
 #import <react/core/ComponentDescriptor.h>
 #import <react/core/ReactPrimitives.h>
+#import <react/mounting/MountingCoordinator.h>
 #import <react/mounting/ShadowView.h>
-#import <react/mounting/ShadowViewMutation.h>
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -27,17 +27,10 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, strong) RCTComponentViewRegistry *componentViewRegistry;
 
 /**
- * Schedule mutations to be performed on the main thread.
+ * Schedule a mounting transaction to be performed on the main thread.
  * Can be called from any thread.
  */
-- (void)scheduleMutations:(facebook::react::ShadowViewMutationList const &)mutations rootTag:(ReactTag)rootTag;
-
-/**
- * Suggests preliminary creation of a component view of given type.
- * The receiver is free to ignore the request.
- * Can be called from any thread.
- */
-- (void)optimisticallyCreateComponentViewWithComponentHandle:(facebook::react::ComponentHandle)componentHandle;
+- (void)scheduleTransaction:(facebook::react::MountingCoordinator::Shared const &)mountingCoordinator;
 
 - (void)synchronouslyUpdateViewOnUIThread:(ReactTag)reactTag
                              changedProps:(NSDictionary *)props

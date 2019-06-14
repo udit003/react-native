@@ -716,6 +716,19 @@ static NSBundle *bundleForPath(NSString *key)
   return bundleCache[key];
 }
 
+UIImage *__nullable RCTImageFromLocalBundleAssetURL(NSURL *imageURL)
+{
+  if (![imageURL.scheme isEqualToString:@"file"]) {
+    // We only want to check for local file assets
+    return nil;
+  }
+  // Get the bundle URL, and add the image URL
+  // Note that we have to add both host and path, since host is the first "assets" part
+  // while path is the rest of the URL
+  NSURL *bundleImageUrl = [[[NSBundle mainBundle] bundleURL] URLByAppendingPathComponent:[imageURL.host stringByAppendingString:imageURL.path]];
+  return RCTImageFromLocalAssetURL(bundleImageUrl);
+}
+
 UIImage *__nullable RCTImageFromLocalAssetURL(NSURL *imageURL)
 {
   NSString *imageName = RCTBundlePathForURL(imageURL);
@@ -740,11 +753,14 @@ UIImage *__nullable RCTImageFromLocalAssetURL(NSURL *imageURL)
 
   if (!image) {
     // Attempt to load from the file system
-    NSString *filePath = [NSString stringWithUTF8String:[imageURL fileSystemRepresentation]];
-    if (filePath.pathExtension.length == 0) {
-      filePath = [filePath stringByAppendingPathExtension:@"png"];
+    const char* fileSystemCString = [imageURL fileSystemRepresentation];
+    if (fileSystemCString != NULL) {
+      NSString *filePath = [NSString stringWithUTF8String:fileSystemCString];
+      if (filePath.pathExtension.length == 0) {
+        filePath = [filePath stringByAppendingPathExtension:@"png"];
+      }
+      image = [UIImage imageWithContentsOfFile:filePath];
     }
-    image = [UIImage imageWithContentsOfFile:filePath];
   }
 
   if (!image && !bundle) {

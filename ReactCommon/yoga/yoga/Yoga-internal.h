@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
  * This source code is licensed under the MIT license found in the LICENSE
@@ -28,8 +28,6 @@ void YGNodeCalculateLayoutWithContext(
     float availableHeight,
     YGDirection ownerDirection,
     void* layoutContext);
-
-void YGSetUsedCachedEntries(size_t);
 
 YG_EXTERN_C_END
 
@@ -93,9 +91,9 @@ struct YGCachedMeasurement {
   }
 };
 
-// This value was chosen based on empiracle data. Even the most complicated
-// layouts should not require more than 16 entries to fit within the cache.
-#define YG_MAX_CACHED_RESULT_COUNT 16
+// This value was chosen based on empirical data:
+// 98% of analyzed layouts require less than 8 entries.
+#define YG_MAX_CACHED_RESULT_COUNT 8
 
 namespace facebook {
 namespace yoga {

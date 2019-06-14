@@ -7,6 +7,8 @@
 
 #import "RCTMountingManager.h"
 
+#import <better/map.h>
+
 #import <React/RCTAssert.h>
 #import <React/RCTFollyConvert.h>
 #import <React/RCTUtils.h>
@@ -18,6 +20,7 @@
 #import "RCTComponentViewRegistry.h"
 #import "RCTConversions.h"
 
+using namespace facebook;
 using namespace facebook::react;
 
 // `Create` instruction
@@ -33,10 +36,7 @@ static void RNDeleteMountInstruction(ShadowViewMutation const &mutation, RCTComp
   auto const &oldChildShadowView = mutation.oldChildShadowView;
   UIView<RCTComponentViewProtocol> *componentView = [registry componentViewByTag:oldChildShadowView.tag];
 
-  // TODO(shergin): Make sure that we don't need this check anymore and delete it.
-  if (componentView == nil) {
-    return;
-  }
+  assert(componentView != nil && "Attempt to delete unregistered component.");
 
   [registry enqueueComponentViewWithComponentHandle:oldChildShadowView.componentHandle
                                                 tag:oldChildShadowView.tag
@@ -52,10 +52,8 @@ static void RNInsertMountInstruction(ShadowViewMutation const &mutation, RCTComp
   UIView<RCTComponentViewProtocol> *childComponentView = [registry componentViewByTag:newShadowView.tag];
   UIView<RCTComponentViewProtocol> *parentComponentView = [registry componentViewByTag:parentShadowView.tag];
 
-  // TODO(shergin): Make sure that we don't need this check anymore and delete it.
-  if (childComponentView == nil || parentComponentView == nil) {
-    return;
-  }
+  assert(childComponentView != nil && "Attempt to mount unregistered component.");
+  assert(parentComponentView != nil && "Attempt to mount into unregistered component.");
 
   [parentComponentView mountChildComponentView:childComponentView index:mutation.index];
 }
@@ -69,10 +67,8 @@ static void RNRemoveMountInstruction(ShadowViewMutation const &mutation, RCTComp
   UIView<RCTComponentViewProtocol> *childComponentView = [registry componentViewByTag:oldShadowView.tag];
   UIView<RCTComponentViewProtocol> *parentComponentView = [registry componentViewByTag:parentShadowView.tag];
 
-  // TODO(shergin): Make sure that we don't need this check anymore and delete it.
-  if (childComponentView == nil || parentComponentView == nil) {
-    return;
-  }
+  assert(childComponentView != nil && "Attempt to unmount unregistered component.");
+  assert(parentComponentView != nil && "Attempt to unmount from unregistered component.");
 
   [parentComponentView unmountChildComponentView:childComponentView index:mutation.index];
 }
@@ -211,35 +207,39 @@ static void RNPerformMountInstructions(ShadowViewMutationList const &mutations, 
   return self;
 }
 
-- (void)scheduleMutations:(ShadowViewMutationList const &)mutations rootTag:(ReactTag)rootTag
+- (void)scheduleTransaction:(MountingCoordinator::Shared const &)mountingCoordinator
 {
   if (RCTIsMainQueue()) {
     // Already on the proper thread, so:
     // * No need to do a thread jump;
     // * No need to do expensive copy of all mutations;
     // * No need to allocate a block.
-    [self mountMutations:mutations rootTag:rootTag];
+    [self mountMutations:mountingCoordinator];
     return;
   }
 
-  // We need a non-reference for `mutations` to allow copy semantic.
-  auto mutationsCopy = mutations;
-
+  auto mountingCoordinatorCopy = mountingCoordinator;
   RCTExecuteOnMainQueue(^{
     RCTAssertMainQueue();
-    [self mountMutations:mutationsCopy rootTag:rootTag];
+    [self mountMutations:mountingCoordinatorCopy];
   });
 }
 
-- (void)mountMutations:(ShadowViewMutationList const &)mutations rootTag:(ReactTag)rootTag
+- (void)mountMutations:(MountingCoordinator::Shared const &)mountingCoordinator
 {
-  SystraceSection s("-[RCTMountingManager mountMutations:rootTag:]");
+  SystraceSection s("-[RCTMountingManager mountMutations:]");
+
+  auto transaction = mountingCoordinator->pullTransaction();
+  if (!transaction.has_value()) {
+    return;
+  }
+
+  auto surfaceId = transaction->getSurfaceId();
 
   RCTAssertMainQueue();
-
-  [self.delegate mountingManager:self willMountComponentsWithRootTag:rootTag];
-  RNPerformMountInstructions(mutations, self.componentViewRegistry);
-  [self.delegate mountingManager:self didMountComponentsWithRootTag:rootTag];
+  [self.delegate mountingManager:self willMountComponentsWithRootTag:surfaceId];
+  RNPerformMountInstructions(transaction->getMutations(), self.componentViewRegistry);
+  [self.delegate mountingManager:self didMountComponentsWithRootTag:surfaceId];
 }
 
 - (void)synchronouslyUpdateViewOnUIThread:(ReactTag)reactTag
@@ -251,18 +251,6 @@ static void RNPerformMountInstructions(ShadowViewMutationList const &mutations, 
   SharedProps oldProps = [componentView props];
   SharedProps newProps = componentDescriptor.cloneProps(oldProps, RawProps(convertIdToFollyDynamic(props)));
   [componentView updateProps:newProps oldProps:oldProps];
-}
-
-- (void)optimisticallyCreateComponentViewWithComponentHandle:(ComponentHandle)componentHandle
-{
-  if (RCTIsMainQueue()) {
-    // There is no reason to allocate views ahead of time on the main thread.
-    return;
-  }
-
-  RCTExecuteOnMainQueue(^{
-    [self->_componentViewRegistry optimisticallyCreateComponentViewWithComponentHandle:componentHandle];
-  });
 }
 
 @end

@@ -80,9 +80,7 @@ public:
       std::shared_ptr<ExecutorDelegate> delegate,
       std::shared_ptr<MessageQueueThread> jsQueue) override {
     auto ret = factory_->createJSExecutor(delegate, jsQueue);
-    bridge_.bridgeDescription =
-      [NSString stringWithFormat:@"RCTCxxBridge %s",
-                ret->getDescription().c_str()];
+    bridge_.bridgeDescription = @(ret->getDescription().c_str());
     return ret;
   }
 
@@ -1099,6 +1097,10 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithBundleURL:(__unused NSURL *)bundleUR
       }
       [moduleData invalidate];
     }
+
+    [[NSNotificationCenter defaultCenter] postNotificationName:RCTBridgeDidInvalidateModulesNotification
+                                                        object:self->_parentBridge
+                                                      userInfo:@{@"bridge": self}];
 
     if (dispatch_group_wait(moduleInvalidation, dispatch_time(DISPATCH_TIME_NOW, 10 * NSEC_PER_SEC))) {
       RCTLogError(@"Timed out waiting for modules to be invalidated");

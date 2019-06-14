@@ -22,14 +22,10 @@ class SchedulerDelegateProxy : public SchedulerDelegate {
  public:
   SchedulerDelegateProxy(void *scheduler) : scheduler_(scheduler) {}
 
-  void schedulerDidFinishTransaction(
-      Tag rootTag,
-      const ShadowViewMutationList &mutations,
-      const long commitStartTime,
-      const long layoutTime) override
+  void schedulerDidFinishTransaction(MountingCoordinator::Shared const &mountingCoordinator) override
   {
     RCTScheduler *scheduler = (__bridge RCTScheduler *)scheduler_;
-    [scheduler.delegate schedulerDidFinishTransaction:mutations rootTag:rootTag];
+    [scheduler.delegate schedulerDidFinishTransaction:mountingCoordinator];
   }
 
   void schedulerDidRequestPreliminaryViewAllocation(SurfaceId surfaceId, const ShadowView &shadowView) override
@@ -47,12 +43,11 @@ class SchedulerDelegateProxy : public SchedulerDelegate {
   std::shared_ptr<SchedulerDelegateProxy> _delegateProxy;
 }
 
-- (instancetype)initWithContextContainer:(ContextContainer::Shared)contextContainer
-                componentRegistryFactory:(ComponentRegistryFactory)componentRegistryFactory
+- (instancetype)initWithToolbox:(facebook::react::SchedulerToolbox)toolbox
 {
   if (self = [super init]) {
     _delegateProxy = std::make_shared<SchedulerDelegateProxy>((__bridge void *)self);
-    _scheduler = std::make_shared<Scheduler>(contextContainer, componentRegistryFactory);
+    _scheduler = std::make_shared<Scheduler>(toolbox);
     _scheduler->setDelegate(_delegateProxy.get());
   }
 

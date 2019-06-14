@@ -11,6 +11,7 @@ Map {
  */
 #pragma once
 
+#include <cinttypes>
 #include <react/components/view/ViewProps.h>
 #include <react/graphics/Color.h>
 #include <react/graphics/Geometry.h>
@@ -19,6 +20,54 @@ Map {
 
 namespace facebook {
 namespace react {
+
+enum class ArrayPropsNativeComponentSizes: uint32_t {
+  Small = 1 << 0,
+  Large = 1 << 1
+};
+
+constexpr bool operator&(
+  const enum ArrayPropsNativeComponentSizes lhs,
+  const enum ArrayPropsNativeComponentSizes rhs) {
+  return ((uint32_t)lhs & (uint32_t)rhs);
+}
+
+constexpr bool operator|(
+  const enum ArrayPropsNativeComponentSizes lhs,
+  const enum ArrayPropsNativeComponentSizes rhs) {
+  return ((uint32_t)lhs | (uint32_t)rhs);
+}
+
+static inline void fromRawValue(const RawValue &value, ArrayPropsNativeComponentSizes &result) {
+  auto items = std::vector<std::string>{value};
+  for (const auto &item : items) {
+    if (item == \\"small\\") {
+      result = (ArrayPropsNativeComponentSizes)(result | ArrayPropsNativeComponentSizes::Small);
+      continue;
+    }
+    if (item == \\"large\\") {
+      result = (ArrayPropsNativeComponentSizes)(result | ArrayPropsNativeComponentSizes::Large);
+      continue;
+    }
+    abort();
+  }
+}
+
+static inline std::string toString(const ArrayPropsNativeComponentSizes &value) {
+    auto result = std::string{};
+    auto separator = std::string{\\", \\"};
+
+    if (value & ArrayPropsNativeComponentSizes::Small) {
+      result += \\"small\\" + separator;
+    }
+    if (value & ArrayPropsNativeComponentSizes::Large) {
+      result += \\"large\\" + separator;
+    }
+    if (!result.empty()) {
+      result.erase(result.length() - separator.length());
+    }
+    return result;
+}
 
 class ArrayPropsNativeComponentProps final : public ViewProps {
  public:
@@ -34,6 +83,7 @@ class ArrayPropsNativeComponentProps final : public ViewProps {
   const std::vector<SharedColor> colors{};
   const std::vector<ImageSource> srcs{};
   const std::vector<Point> points{};
+  const ArrayPropsNativeComponentSizes sizes{ArrayPropsNativeComponentSizes::Small};
 };
 
 } // namespace react
@@ -123,13 +173,13 @@ Map {
 namespace facebook {
 namespace react {
 
-enum class EnumPropsNativeComponentAlignment { Top, Center, Bottom };
+enum class EnumPropsNativeComponentAlignment { Top, Center, BottomRight };
 
 static inline void fromRawValue(const RawValue &value, EnumPropsNativeComponentAlignment &result) {
   auto string = (std::string)value;
   if (string == \\"top\\") { result = EnumPropsNativeComponentAlignment::Top; return; }
   if (string == \\"center\\") { result = EnumPropsNativeComponentAlignment::Center; return; }
-  if (string == \\"bottom\\") { result = EnumPropsNativeComponentAlignment::Bottom; return; }
+  if (string == \\"bottom-right\\") { result = EnumPropsNativeComponentAlignment::BottomRight; return; }
   abort();
 }
 
@@ -137,7 +187,7 @@ static inline std::string toString(const EnumPropsNativeComponentAlignment &valu
   switch (value) {
     case EnumPropsNativeComponentAlignment::Top: return \\"top\\";
     case EnumPropsNativeComponentAlignment::Center: return \\"center\\";
-    case EnumPropsNativeComponentAlignment::Bottom: return \\"bottom\\";
+    case EnumPropsNativeComponentAlignment::BottomRight: return \\"bottom-right\\";
   }
 }
 
@@ -452,6 +502,7 @@ class StringPropComponentProps final : public ViewProps {
 #pragma mark - Props
 
   const std::string accessibilityHint{\\"\\"};
+  const std::string accessibilityRole{};
 };
 
 } // namespace react

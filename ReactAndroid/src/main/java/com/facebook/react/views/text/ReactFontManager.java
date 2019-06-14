@@ -7,8 +7,6 @@
 
 package com.facebook.react.views.text;
 
-import javax.annotation.Nullable;
-
 import java.util.HashMap;
 import java.util.Map;
 
@@ -17,8 +15,9 @@ import android.content.res.AssetManager;
 import android.graphics.Typeface;
 import android.util.SparseArray;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.core.content.res.ResourcesCompat;
-
 
 /**
  * Class responsible to load and cache Typeface objects. It will first try to load typefaces inside
@@ -40,12 +39,12 @@ public class ReactFontManager {
 
   private static ReactFontManager sReactFontManagerInstance;
 
-  private Map<String, FontFamily> mFontCache;
-  private Map<String, Typeface> mTypeCache;
+  final private Map<String, FontFamily> mFontCache;
+  final private Map<String, Typeface> mCustomTypefaceCache;
 
   private ReactFontManager() {
     mFontCache = new HashMap<>();
-    mTypeCache = new HashMap<>();
+    mCustomTypefaceCache = new HashMap<>();
   }
 
   public static ReactFontManager getInstance() {
@@ -55,7 +54,7 @@ public class ReactFontManager {
     return sReactFontManagerInstance;
   }
 
-  private @Nullable Typeface getTypeface(
+  public @Nullable Typeface getTypeface(
       String fontFamilyName,
       int style,
       AssetManager assetManager) {
@@ -63,6 +62,13 @@ public class ReactFontManager {
     if (fontFamily == null) {
       fontFamily = new FontFamily();
       mFontCache.put(fontFamilyName, fontFamily);
+    }
+
+    if(mCustomTypefaceCache.containsKey(fontFamilyName)) {
+      return Typeface.create(
+        mCustomTypefaceCache.get(fontFamilyName),
+        style
+      );
     }
 
     Typeface typeface = fontFamily.getTypeface(style);
@@ -76,31 +82,18 @@ public class ReactFontManager {
     return typeface;
   }
 
-  public @Nullable Typeface getTypeface(
-    String fontFamilyName,
-    int style,
-    Context context) {
-    Typeface font = mTypeCache.get(fontFamilyName);
-
+  /*
+   * This method allows you to load custom fonts from res/font folder as provided font family name.
+   * Fonts may be one of .ttf, .otf or XML (https://developer.android.com/guide/topics/ui/look-and-feel/fonts-in-xml).
+   * To support multiple font styles or weights, you must provide a font in XML format.
+   *
+   * ReactFontManager.getInstance().addCustomFont(this, "Srisakdi", R.font.srisakdi);
+   */
+  public void addCustomFont(@NonNull Context context, @NonNull String fontFamily, int fontId) {
+    Typeface font = ResourcesCompat.getFont(context, fontId);
     if (font != null) {
-      return Typeface.create(
-        font,
-        style
-      );
+      mCustomTypefaceCache.put(fontFamily, font);
     }
-
-    int fontId = context.getResources().getIdentifier(fontFamilyName, "font", context.getPackageName());
-    if (fontId != 0) {
-      font = ResourcesCompat.getFont(context, fontId);
-      if (font != null) {
-        mTypeCache.put(fontFamilyName, font);
-        return Typeface.create(
-          font,
-          style
-        );
-      }
-    }
-    return getTypeface(fontFamilyName, style, context.getAssets());
   }
 
   /**

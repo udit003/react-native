@@ -188,7 +188,7 @@ public abstract class ReactBaseTextShadowNode extends LayoutShadowNode {
                     textShadowNode.mFontStyle,
                     textShadowNode.mFontWeight,
                     textShadowNode.mFontFamily,
-                    textShadowNode.getThemedContext())));
+                    textShadowNode.getThemedContext().getAssets())));
       }
       if (textShadowNode.mIsUnderlineTextDecorationSet) {
         ops.add(new SetSpanOperation(start, end, new ReactUnderlineSpan()));
@@ -226,7 +226,7 @@ public abstract class ReactBaseTextShadowNode extends LayoutShadowNode {
   }
 
   // `nativeViewHierarchyOptimizer` can be `null` as long as `supportsInlineViews` is `false`.
-  protected static Spannable spannedFromShadowNode(
+  protected Spannable spannedFromShadowNode(
       ReactBaseTextShadowNode textShadowNode,
       String text,
       boolean supportsInlineViews,
@@ -373,10 +373,10 @@ public abstract class ReactBaseTextShadowNode extends LayoutShadowNode {
   private int getTextAlign() {
     int textAlign = mTextAlign;
     if (getLayoutDirection() == YogaDirection.RTL) {
-      if (textAlign == Gravity.END) {
-        textAlign = Gravity.START;
-      } else if (textAlign == Gravity.START) {
-        textAlign = Gravity.END;
+      if (textAlign == Gravity.RIGHT) {
+        textAlign = Gravity.LEFT;
+      } else if (textAlign == Gravity.LEFT) {
+        textAlign = Gravity.RIGHT;
       }
     }
     return textAlign;
@@ -422,7 +422,7 @@ public abstract class ReactBaseTextShadowNode extends LayoutShadowNode {
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
         mJustificationMode = Layout.JUSTIFICATION_MODE_INTER_WORD;
       }
-      mTextAlign = Gravity.START;
+      mTextAlign = Gravity.LEFT;
     } else {
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
         mJustificationMode = Layout.JUSTIFICATION_MODE_NONE;
@@ -431,9 +431,9 @@ public abstract class ReactBaseTextShadowNode extends LayoutShadowNode {
       if (textAlign == null || "auto".equals(textAlign)) {
         mTextAlign = Gravity.NO_GRAVITY;
       } else if ("left".equals(textAlign)) {
-        mTextAlign = Gravity.START;
+        mTextAlign = Gravity.LEFT;
       } else if ("right".equals(textAlign)) {
-        mTextAlign = Gravity.END;
+        mTextAlign = Gravity.RIGHT;
       } else if ("center".equals(textAlign)) {
         mTextAlign = Gravity.CENTER_HORIZONTAL;
       } else {
@@ -459,8 +459,8 @@ public abstract class ReactBaseTextShadowNode extends LayoutShadowNode {
     markUpdated();
   }
 
-  @ReactProp(name = ViewProps.BACKGROUND_COLOR)
-  public void setBackgroundColor(Integer color) {
+  @ReactProp(name = ViewProps.BACKGROUND_COLOR, customType = "Color")
+  public void setBackgroundColor(@Nullable Integer color) {
     // Background color needs to be handled here for virtual nodes so it can be incorporated into
     // the span. However, it doesn't need to be applied to non-virtual nodes because non-virtual
     // nodes get mapped to native views and native views get their background colors get set via

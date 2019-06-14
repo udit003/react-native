@@ -9,7 +9,6 @@ package com.facebook.react.views.textinput;
 
 import static android.view.View.FOCUS_FORWARD;
 
-import android.annotation.TargetApi;
 import android.graphics.PorterDuff;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
@@ -221,7 +220,7 @@ public class ReactTextInputManager extends BaseViewManager<ReactEditText, Layout
     Typeface newTypeface = ReactFontManager.getInstance().getTypeface(
         fontFamily,
         style,
-        view.getContext());
+        view.getContext().getAssets());
     view.setTypeface(newTypeface);
   }
 
@@ -478,7 +477,7 @@ public class ReactTextInputManager extends BaseViewManager<ReactEditText, Layout
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
         view.setJustificationMode(Layout.JUSTIFICATION_MODE_INTER_WORD);
       }
-      view.setGravityHorizontal(Gravity.START);
+      view.setGravityHorizontal(Gravity.LEFT);
     } else {
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
         view.setJustificationMode(Layout.JUSTIFICATION_MODE_NONE);
@@ -487,9 +486,9 @@ public class ReactTextInputManager extends BaseViewManager<ReactEditText, Layout
       if (textAlign == null || "auto".equals(textAlign)) {
         view.setGravityHorizontal(Gravity.NO_GRAVITY);
       } else if ("left".equals(textAlign)) {
-        view.setGravityHorizontal(Gravity.START);
+        view.setGravityHorizontal(Gravity.LEFT);
       } else if ("right".equals(textAlign)) {
-        view.setGravityHorizontal(Gravity.END);
+        view.setGravityHorizontal(Gravity.RIGHT);
       } else if ("center".equals(textAlign)) {
         view.setGravityHorizontal(Gravity.CENTER_HORIZONTAL);
       } else {
@@ -715,6 +714,12 @@ public class ReactTextInputManager extends BaseViewManager<ReactEditText, Layout
   public void setBorderStyle(ReactEditText view, @Nullable String borderStyle) {
     view.setBorderStyle(borderStyle);
   }
+
+  @ReactProp(name = "showSoftInputOnFocus", defaultBoolean = true)
+  public void showKeyboardOnFocus(ReactEditText view, boolean showKeyboardOnFocus) {
+    view.setShowSoftInputOnFocus(showKeyboardOnFocus);
+  }
+
 
   @ReactPropGroup(names = {
       ViewProps.BORDER_WIDTH,
@@ -964,16 +969,22 @@ public class ReactTextInputManager extends BaseViewManager<ReactEditText, Layout
       // Android will call us back for both the SELECTION_START span and SELECTION_END span in text
       // To prevent double calling back into js we cache the result of the previous call and only
       // forward it on if we have new values
-      if (mPreviousSelectionStart != start || mPreviousSelectionEnd != end) {
+
+      // Apparently Android might call this with an end value that is less than the start value
+      // Lets normalize them. See https://github.com/facebook/react-native/issues/18579
+      int realStart = Math.min(start, end);
+      int realEnd = Math.max(start, end);
+
+      if (mPreviousSelectionStart != realStart || mPreviousSelectionEnd != realEnd) {
         mEventDispatcher.dispatchEvent(
             new ReactTextInputSelectionEvent(
                 mReactEditText.getId(),
-                start,
-                end
+                realStart,
+                realEnd
             ));
 
-        mPreviousSelectionStart = start;
-        mPreviousSelectionEnd = end;
+        mPreviousSelectionStart = realStart;
+        mPreviousSelectionEnd = realEnd;
       }
     }
   }

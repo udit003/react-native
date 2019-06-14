@@ -18,6 +18,7 @@ const INTERFACE_ONLY: SchemaType = {
       components: {
         InterfaceOnlyComponent: {
           interfaceOnly: true,
+          isDeprecatedPaperComponentNameRCT: true,
           extendsProps: [
             {
               type: 'ReactNativeBuiltInType',
@@ -107,6 +108,14 @@ const STRING_PROP: SchemaType = {
               typeAnnotation: {
                 type: 'StringTypeAnnotation',
                 default: '',
+              },
+            },
+            {
+              name: 'accessibilityRole',
+              optional: true,
+              typeAnnotation: {
+                type: 'StringTypeAnnotation',
+                default: null,
               },
             },
           ],
@@ -398,6 +407,25 @@ const ARRAY_PROPS: SchemaType = {
                 },
               },
             },
+            {
+              name: 'sizes',
+              optional: true,
+              typeAnnotation: {
+                type: 'ArrayTypeAnnotation',
+                elementType: {
+                  type: 'StringEnumTypeAnnotation',
+                  default: 'small',
+                  options: [
+                    {
+                      name: 'small',
+                    },
+                    {
+                      name: 'large',
+                    },
+                  ],
+                },
+              },
+            },
           ],
         },
       },
@@ -484,7 +512,7 @@ const ENUM_PROP: SchemaType = {
                     name: 'center',
                   },
                   {
-                    name: 'bottom',
+                    name: 'bottom-right',
                   },
                 ],
               },
@@ -557,6 +585,14 @@ const EVENT_PROPS: SchemaType = {
                     },
                   ],
                 },
+              },
+            },
+            {
+              name: 'onEnd',
+              optional: true,
+              bubblingType: 'bubble',
+              typeAnnotation: {
+                type: 'EventTypeAnnotation',
               },
             },
           ],

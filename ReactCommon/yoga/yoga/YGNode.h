@@ -1,15 +1,20 @@
-/**
+/*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
  * This source code is licensed under the MIT license found in the LICENSE
  * file in the root directory of this source tree.
  */
 #pragma once
+#include <cstdint>
 #include <stdio.h>
+#include "CompactValue.h"
 #include "YGConfig.h"
 #include "YGLayout.h"
 #include "YGStyle.h"
+#include "YGMacros.h"
 #include "Yoga-internal.h"
+
+YGConfigRef YGConfigGetDefault();
 
 struct YGNode {
   using MeasureWithContextFn =
@@ -26,6 +31,8 @@ private:
   bool measureUsesContext_ : 1;
   bool baselineUsesContext_ : 1;
   bool printUsesContext_ : 1;
+  bool useWebDefaults_ : 1;
+  uint8_t reserved_ = 0;
   union {
     YGMeasureFunc noContext;
     MeasureWithContextFn withContext;
@@ -44,7 +51,7 @@ private:
   uint32_t lineIndex_ = 0;
   YGNodeRef owner_ = nullptr;
   YGVector children_ = {};
-  YGConfigRef config_ = nullptr;
+  YGConfigRef config_;
   std::array<YGValue, 2> resolvedDimensions_ = {
       {YGValueUndefined, YGValueUndefined}};
 
@@ -55,6 +62,12 @@ private:
   void setMeasureFunc(decltype(measure_));
   void setBaselineFunc(decltype(baseline_));
 
+  void useWebDefaults() {
+    useWebDefaults_ = true;
+    style_.flexDirection() = YGFlexDirectionRow;
+    style_.alignContent() = YGAlignStretch;
+  }
+
   // DANGER DANGER DANGER!
   // If the the node assigned to has children, we'd either have to deallocate
   // them (potentially incorrect) or ignore them (danger of leaks). Only ever
@@ -62,17 +75,25 @@ private:
   // DO NOT CHANGE THE VISIBILITY OF THIS METHOD!
   YGNode& operator=(YGNode&&) = default;
 
+  using CompactValue = facebook::yoga::detail::CompactValue;
+
 public:
-  YGNode()
+  YGNode() : YGNode{YGConfigGetDefault()} {}
+  explicit YGNode(const YGConfigRef config)
       : hasNewLayout_{true},
         isReferenceBaseline_{false},
         isDirty_{false},
         nodeType_{YGNodeTypeDefault},
         measureUsesContext_{false},
         baselineUsesContext_{false},
-        printUsesContext_{false} {}
+        printUsesContext_{false},
+        useWebDefaults_{config->useWebDefaults},
+        config_{config} {
+    if (useWebDefaults_) {
+      useWebDefaults();
+    }
+  };
   ~YGNode() = default; // cleanup of owner/children relationships in YGNodeFree
-  explicit YGNode(const YGConfigRef newConfig) : config_(newConfig){};
 
   YGNode(YGNode&&);
 
@@ -80,12 +101,18 @@ public:
   // Should we remove this?
   YGNode(const YGNode& node) = default;
 
+  // for RB fabric
+  YGNode(const YGNode& node, YGConfigRef config);
+
   // assignment means potential leaks of existing children, or alternatively
   // freeing unowned memory, double free, or freeing stack memory.
   YGNode& operator=(const YGNode&) = delete;
 
   // Getters
   void* getContext() const { return context_; }
+
+  uint8_t& reserved() { return reserved_; }
+  uint8_t reserved() const { return reserved_; }
 
   void print(void*);
 
@@ -210,14 +237,6 @@ public:
 
   void setNodeType(YGNodeType nodeType) { nodeType_ = nodeType; }
 
-  void setStyleFlexDirection(YGFlexDirection direction) {
-    style_.flexDirection = direction;
-  }
-
-  void setStyleAlignContent(YGAlign alignContent) {
-    style_.alignContent = alignContent;
-  }
-
   void setMeasureFunc(YGMeasureFunc measureFunc);
   void setMeasureFunc(MeasureWithContextFn);
   void setMeasureFunc(std::nullptr_t) {
@@ -254,7 +273,7 @@ public:
 
   // TODO: rvalue override for setChildren
 
-  void setConfig(YGConfigRef config) { config_ = config; }
+  YG_DEPRECATED void setConfig(YGConfigRef config) { config_ = config; }
 
   void setDirty(bool isDirty);
   void setLayoutLastOwnerDirection(YGDirection direction);
@@ -274,7 +293,6 @@ public:
       const float mainSize,
       const float crossSize,
       const float ownerWidth);
-  void setAndPropogateUseLegacyFlag(bool useLegacyFlag);
   void setLayoutDoesLegacyFlagAffectsLayout(bool doesLegacyFlagAffectsLayout);
   void setLayoutDidUseLegacyFlag(bool didUseLegacyFlag);
   void markDirtyAndPropogateDownwards();
@@ -296,8 +314,8 @@ public:
 
   void cloneChildrenIfNeeded(void*);
   void markDirtyAndPropogate();
-  float resolveFlexGrow();
-  float resolveFlexShrink();
+  float resolveFlexGrow() const;
+  float resolveFlexShrink() const;
   bool isNodeFlexible();
   bool didUseLegacyFlag();
   bool isLayoutTreeEqualToNode(const YGNode& node) const;
