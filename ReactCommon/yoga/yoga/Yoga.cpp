@@ -1581,6 +1581,7 @@ static void YGNodeWithMeasureFuncSetMeasuredDimensions(
     const YGMeasureMode heightMeasureMode,
     const float ownerWidth,
     const float ownerHeight,
+    YGMarkerLayoutData& layoutMarkerData,
     void* const layoutContext) {
   YGAssertWithNode(
       node,
@@ -1634,6 +1635,7 @@ static void YGNodeWithMeasureFuncSetMeasuredDimensions(
         innerHeight,
         heightMeasureMode,
         layoutContext);
+    layoutMarkerData.measureCallbacks += 1;
 
 #ifdef YG_ENABLE_EVENTS
     Event::publish<Event::NodeMeasure>(
@@ -2700,6 +2702,7 @@ static void YGNodelayoutImpl(
         heightMeasureMode,
         ownerWidth,
         ownerHeight,
+        layoutMarkerData,
         layoutContext);
     return;
   }
@@ -4023,9 +4026,7 @@ void YGNodeCalculateLayoutWithContext(
 #ifdef YG_ENABLE_EVENTS
   Event::publish<Event::LayoutPassStart>(node, {layoutContext});
 #endif
-  // unique pointer to allow ending the marker early
-  std::unique_ptr<marker::MarkerSection<YGMarkerLayout>> marker{
-      new marker::MarkerSection<YGMarkerLayout>{node}};
+  marker::MarkerSection<YGMarkerLayout> marker{node};
 
   // Increment the generation count. This will force the recursive routine to
   // visit all dirty nodes at least once. Subsequent visits will be skipped if
@@ -4084,7 +4085,7 @@ void YGNodeCalculateLayoutWithContext(
           true,
           "initial",
           node->getConfig(),
-          marker->data,
+          marker.data,
           layoutContext)) {
     node->setPosition(
         node->getLayout().direction, ownerWidth, ownerHeight, ownerWidth);
@@ -4101,11 +4102,10 @@ void YGNodeCalculateLayoutWithContext(
 #endif
   }
 
-  // end marker here
-  marker = nullptr;
+  marker.end();
 
 #ifdef YG_ENABLE_EVENTS
-  Event::publish<Event::LayoutPassEnd>(node, {layoutContext});
+  Event::publish<Event::LayoutPassEnd>(node, {layoutContext, &marker.data});
 #endif
 
   // We want to get rid off `useLegacyStretchBehaviour` from YGConfig. But we
