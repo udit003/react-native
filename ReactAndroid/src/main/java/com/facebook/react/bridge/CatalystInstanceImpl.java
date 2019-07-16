@@ -239,6 +239,31 @@ public class CatalystInstanceImpl implements CatalystInstance {
   private native void jniLoadScriptFromFile(String fileName, String sourceURL, boolean loadSynchronously);
   private native void jniLoadScriptFromDeltaBundle(String sourceURL, NativeDeltaClient deltaClient, boolean loadSynchronously);
 
+
+  @Override
+  public void runLazyBundle(String filePath){
+    
+    JSBundleLoader jsBundleLoader = JSBundleLoader.createFileLoader(filePath);
+
+    Log.d("UDIT_LAZY","CatalystInstanceImpl.runLazyBundle()");
+    jsBundleLoader.loadScript(CatalystInstanceImpl.this);
+
+
+    synchronized (mJSCallsPendingInitLock) {
+
+      // Loading the bundle is queued on the JS thread, but may not have
+      // run yet.  It's safe to set this here, though, since any work it
+      // gates will be queued on the JS thread behind the load.
+      mAcceptCalls = true;
+
+      for (PendingJSCall function : mJSCallsPendingInit) {
+        function.call(this);
+      }
+      mJSCallsPendingInit.clear();
+     // mJSBundleHasLoaded = true;
+    }
+  }
+
   @Override
   public void runJSBundle() {
     Log.d(ReactConstants.TAG, "CatalystInstanceImpl.runJSBundle()");
